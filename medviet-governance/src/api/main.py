@@ -15,11 +15,15 @@ async def get_raw_patients(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    TODO: Trả về raw patient data (chỉ admin được phép).
+    Trả về raw patient data (chỉ admin được phép).
     Load từ data/raw/patients_raw.csv
     Trả về 10 records đầu tiên dưới dạng JSON.
     """
-    pass
+    try:
+        df = pd.read_csv("data/raw/patients_raw.csv")
+        return JSONResponse(content=df.head(10).to_dict(orient="records"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Raw data file not found")
 
 # --- ENDPOINT 2 ---
 @app.get("/api/patients/anonymized")
@@ -28,10 +32,15 @@ async def get_anonymized_patients(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    TODO: Trả về anonymized data (ml_engineer và admin được phép).
+    Trả về anonymized data (ml_engineer và admin được phép).
     Load raw data → anonymize → trả về JSON.
     """
-    pass
+    try:
+        df = pd.read_csv("data/raw/patients_raw.csv")
+        df_anon = anonymizer.anonymize_dataframe(df)
+        return JSONResponse(content=df_anon.head(10).to_dict(orient="records"))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Raw data file not found")
 
 # --- ENDPOINT 3 ---
 @app.get("/api/metrics/aggregated")
@@ -40,10 +49,15 @@ async def get_aggregated_metrics(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    TODO: Trả về aggregated metrics (data_analyst, ml_engineer, admin).
+    Trả về aggregated metrics (data_analyst, ml_engineer, admin).
     Ví dụ: số bệnh nhân theo từng loại bệnh (không có PII).
     """
-    pass
+    try:
+        df = pd.read_csv("data/raw/patients_raw.csv")
+        metrics = df["benh"].value_counts().to_dict()
+        return {"metrics": metrics}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Raw data file not found")
 
 # --- ENDPOINT 4 ---
 @app.delete("/api/patients/{patient_id}")
@@ -53,9 +67,9 @@ async def delete_patient(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    TODO: Chỉ admin được xóa. Các role khác nhận 403.
+    Chỉ admin được xóa. Các role khác nhận 403.
     """
-    pass
+    return {"message": f"Patient {patient_id} deleted successfully (mock)"}
 
 @app.get("/health")
 async def health():

@@ -15,7 +15,7 @@ class MedVietAnonymizer:
 
     def anonymize_text(self, text: str, strategy: str = "replace") -> str:
         """
-        TODO: Anonymize text với strategy được chọn.
+        Anonymize text với strategy được chọn.
 
         Strategies:
         - "mask"    : Nguyen Van A → N****** V** A
@@ -23,11 +23,11 @@ class MedVietAnonymizer:
         - "hash"    : SHA-256 one-way hash
         - "generalize": chỉ dùng cho tuổi/năm sinh
         """
+        import hashlib
         results = detect_pii(text, self.analyzer)
         if not results:
             return text
 
-        # TODO: implement operators dict dựa trên strategy
         operators = {}
 
         if strategy == "replace":
@@ -35,18 +35,29 @@ class MedVietAnonymizer:
                 "PERSON": OperatorConfig("replace", 
                           {"new_value": fake.name()}),
                 "EMAIL_ADDRESS": OperatorConfig("replace", 
-                                 {"new_value": ___}),   # TODO: fake email
+                                 {"new_value": fake.email()}),
                 "VN_CCCD": OperatorConfig("replace", 
-                           {"new_value": ___}),          # TODO: fake CCCD
+                           {"new_value": f"{fake.random_number(digits=12, fix_len=True)}"}),
                 "VN_PHONE": OperatorConfig("replace", 
-                            {"new_value": ___}),         # TODO: fake phone
+                            {"new_value": f"0{fake.random_element(elements=('3','5','7','8','9'))}{fake.random_number(digits=8, fix_len=True)}"}),
             }
         elif strategy == "mask":
-            # TODO: implement masking
-            pass
+            operators = {
+                "PERSON": OperatorConfig("mask", {"chars_to_mask": 6, "masking_char": "*", "from_end": True}),
+                "EMAIL_ADDRESS": OperatorConfig("mask", {"chars_to_mask": 10, "masking_char": "*", "from_end": True}),
+                "VN_CCCD": OperatorConfig("mask", {"chars_to_mask": 8, "masking_char": "*", "from_end": True}),
+                "VN_PHONE": OperatorConfig("mask", {"chars_to_mask": 6, "masking_char": "*", "from_end": True}),
+            }
         elif strategy == "hash":
-            # TODO: implement hashing dùng sha256
-            pass
+            def hash_value(value):
+                return hashlib.sha256(value.encode()).hexdigest()[:12]
+            
+            operators = {
+                "PERSON": OperatorConfig("custom", {"lambda": hash_value}),
+                "EMAIL_ADDRESS": OperatorConfig("custom", {"lambda": hash_value}),
+                "VN_CCCD": OperatorConfig("custom", {"lambda": hash_value}),
+                "VN_PHONE": OperatorConfig("custom", {"lambda": hash_value}),
+            }
 
         anonymized = self.anonymizer.anonymize(
             text=text,
@@ -57,7 +68,7 @@ class MedVietAnonymizer:
 
     def anonymize_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        TODO: Anonymize toàn bộ DataFrame.
+        Anonymize toàn bộ DataFrame.
         - Cột text (ho_ten, dia_chi, email): dùng anonymize_text()
         - Cột cccd, so_dien_thoai: replace trực tiếp bằng fake data
         - Cột benh, ket_qua_xet_nghiem: GIỮ NGUYÊN (cần cho model training)
@@ -65,8 +76,19 @@ class MedVietAnonymizer:
         """
         df_anon = df.copy()
 
-        # TODO: Xử lý từng cột PII
-        # Gợi ý: dùng df.apply() hoặc list comprehension
+        # Áp dụng cho các cột text
+        for col in ["ho_ten", "dia_chi", "email"]:
+            if col in df_anon.columns:
+                df_anon[col] = df_anon[col].apply(lambda x: self.anonymize_text(str(x)))
+
+        # Áp dụng cho các cột định danh cụ thể
+        if "cccd" in df_anon.columns:
+            df_anon["cccd"] = df_anon["cccd"].apply(lambda x: f"{fake.random_number(digits=12, fix_len=True)}")
+        
+        if "so_dien_thoai" in df_anon.columns:
+            df_anon["so_dien_thoai"] = df_anon["so_dien_thoai"].apply(
+                lambda x: f"0{fake.random_element(elements=('3','5','7','8','9'))}{fake.random_number(digits=8, fix_len=True)}"
+            )
 
         return df_anon
 
